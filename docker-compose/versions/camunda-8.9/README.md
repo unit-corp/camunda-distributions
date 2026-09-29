@@ -9,6 +9,7 @@ For end user usage, please check the official documentation of [Camunda 8 Self-M
 Camunda services read their application settings from YAML mounted by Docker Compose:
 
 - The lightweight `docker-compose.yaml` keeps its Connectors YAML inline under `configs`, preserving the compact setup. Orchestration mounts the selected file from `configuration/`.
+- The OAuth2 setups import the shared Keycloak realm from `.keycloak/orchestration-connectors-realm.json`. Each setup mounts its matching `.orchestration/application-oauth2*.yaml` file. Both files preserve `.orchestration/application.yaml` as their baseline so their intentional OAuth2, storage, endpoint, and TLS differences remain reviewable.
 - The full and standalone setups share component files under `.identity/` and `.web-modeler/`. The standalone-only Identity overlay remains inline in `docker-compose-web-modeler.yaml`.
 - The full setup additionally uses `.orchestration/application.yaml`, `.connectors/application.yaml`, and the files under `.optimize/`. Web Modeler cluster registrations are isolated in `.web-modeler/application-full.yaml`.
 
@@ -40,6 +41,42 @@ The `application-opensearch.yaml` sample expects an OpenSearch instance reachabl
 ### JDBC drivers
 
 The Camunda Docker image automatically loads any `.jar` dropped into `/driver-lib`. A writable `driver-lib/` folder is included next to the compose file so you can copy the vendor JDBC driver there before starting (e.g., `driver-lib/mysql-connector-j-9.0.0.jar`). This is required for MySQL and Oracle. PostgreSQL, MariaDB, SQL Server, and H2 drivers are already bundled in the image — see [supported JDBC driver versions](https://docs.camunda.io/docs/self-managed/concepts/databases/relational-db/rdbms-support-policy/#bundled-drivers) for the authoritative list.
+
+## Generating the gRPC TLS certificate
+
+The `docker-compose-oauth2-tls.yaml` setup enables TLS for the Orchestration gRPC endpoint only. All Camunda versions share one certificate set under `docker-compose/certificates/`; generate it once by following the [gRPC TLS certificate guide](../../certificates/README.md).
+
+Start the OAuth2 stack without transport TLS:
+
+```bash
+docker compose -f docker-compose-oauth2.yaml up -d
+```
+
+Start the OAuth2 stack with TLS on gRPC port 26500 only. The same Compose file supports the shared local-CA-signed or corporate-CA-signed `../../certificates/tls.crt`:
+
+```bash
+docker compose -f docker-compose-oauth2-tls.yaml up -d
+```
+
+## Cleaning all local data
+
+Use a clean reset when the local Zeebe state, H2 secondary storage, or Keycloak data must be recreated from scratch. Run the command that matches the Compose file used to start the stack.
+
+Without gRPC TLS:
+
+```bash
+docker compose -f docker-compose-oauth2.yaml down --volumes --remove-orphans
+docker compose -f docker-compose-oauth2.yaml up -d --wait --wait-timeout 300
+```
+
+With gRPC TLS:
+
+```bash
+docker compose -f docker-compose-oauth2-tls.yaml down --volumes --remove-orphans
+docker compose -f docker-compose-oauth2-tls.yaml up -d --wait --wait-timeout 300
+```
+
+The `down --volumes` command permanently removes all process data, H2 secondary-storage data, and Keycloak realm, user, and client data from this local stack. Docker images and the generated files under `docker-compose/certificates/` are not removed.
 
 ## Enabling multi-tenancy
 

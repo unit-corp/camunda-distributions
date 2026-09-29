@@ -1,0 +1,25 @@
+[req]
+prompt = no
+distinguished_name = dn
+req_extensions = server_cert
+x509_extensions = server_cert
+
+[dn]
+C = VN
+ST = HCMC
+L = Ho Chi Minh City
+O = UNIT TECHNOLOGY CORPORATION
+OU = Technology Innovation Department
+CN = orchestration
+emailAddress = rd@unit.com.vn
+
+[server_cert]
+basicConstraints = critical,CA:FALSE
+keyUsage = critical,digitalSignature,keyEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = orchestration
+DNS.2 = localhost
+IP.1 = 127.0.0.1

@@ -1,0 +1,152 @@
+spring:
+  profiles:
+    active: "admin,operate,tasklist,broker,consolidated-auth"
+
+management:
+  server:
+    port: 9600
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,configprops
+  endpoint:
+    configprops:
+      show-values: ALWAYS
+
+server:
+  forward-headers-strategy: none
+  address: 0.0.0.0
+
+zeebe:
+  host: 0.0.0.0
+  log:
+    level: "info"
+
+  broker:
+    # zeebe.broker.gateway
+    gateway:
+      enable: true
+      network:
+        host: 0.0.0.0
+        port: 26500
+      security:
+        authentication:
+          identity:
+            issuerBackendUrl: "http://${KEYCLOAK_HOST:host.docker.internal}:18080/auth/realms/camunda-platform"
+
+    # zeebe.broker.network
+    network:
+      host: 0.0.0.0
+      commandApi:
+        port: 26501
+      internalApi:
+        port: 26502
+
+    # zeebe.broker.data
+    data:
+      snapshotPeriod: 5m
+      # Allow running with low disk space (for local development)
+      diskUsageCommandWatermark: 0.998
+      diskUsageReplicationWatermark: 0.999
+      freeSpace:
+        processing: 2GB
+        replication: 3GB
+
+    # zeebe.broker.threads
+    threads:
+      cpuThreadCount: "3"
+      ioThreadCount: "3"
+
+camunda:
+  database:
+    type: rdbms
+  backup:
+    webapps:
+      enabled: false
+  persistent:
+    sessions:
+      enabled: false
+
+  rest:
+    query:
+      enabled: true
+
+  mcp:
+    enabled: true
+
+  security:
+    authentication:
+      method: "oidc"
+      unprotectedApi: false
+      oidc:
+        client-id: "${ORCHESTRATION_CLIENT_ID:orchestration}"
+        client-secret: "${ORCHESTRATION_CLIENT_SECRET}"
+        audiences:
+          - orchestration
+          - orchestration-api
+        authorization-uri: "http://${HOST:localhost}:18080/auth/realms/camunda-platform/protocol/openid-connect/auth"
+        token-uri: "http://${KEYCLOAK_HOST:host.docker.internal}:18080/auth/realms/camunda-platform/protocol/openid-connect/token"
+        jwk-set-uri: "http://${KEYCLOAK_HOST:host.docker.internal}:18080/auth/realms/camunda-platform/protocol/openid-connect/certs"
+        redirect-uri: "http://${HOST:localhost}:8080/sso-callback"
+        username-claim: preferred_username
+        client-id-claim: client_id
+        prefer-username-claim: true
+    authorizations:
+      enabled: true
+    initialization:
+      defaultRoles.admin.users:
+        - demo
+        - service-account-orchestration
+      defaultRoles.admin.clients:
+        - orchestration
+      defaultRoles.connectors.users:
+        - connectors
+        - service-account-connectors
+      defaultRoles.connectors.clients:
+        - connectors
+
+  #
+  # Camunda Data Configuration.
+  #
+  data:
+    secondary-storage:
+      type: rdbms
+      rdbms:
+        url: jdbc:h2:file:./camunda-data/h2db
+        username: sa
+        password:
+        flushInterval: PT0.5S
+        queueSize: 1000
+
+  #
+  # Camunda Operate Configuration.
+  #
+  operate:
+    database: rdbms
+    persistentSessionsEnabled: false
+    identity:
+      redirectRootUrl: "http://localhost:8080/operate"
+
+    # Zeebe instance
+    zeebe:
+      # Gateway address
+      gatewayAddress: "orchestration:26500"
+
+  #
+  # Camunda Tasklist Configuration.
+  #
+  tasklist:
+    database: rdbms
+    identity:
+      redirectRootUrl: "http://localhost:8080/tasklist"
+
+    # Set Tasklist username and password.
+    # If user with <username> does not exists it will be created.
+    # Default: demo/demo
+    #username:
+    #password:
+    # Zeebe instance
+    zeebe:
+      # Gateway address
+      gatewayAddress: orchestration:26500
+      restAddress: "http://orchestration:8080"
